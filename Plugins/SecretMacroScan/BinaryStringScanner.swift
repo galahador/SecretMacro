@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import PackagePlugin
 
 enum BinaryStringScanner {
     enum ScanError: Error, CustomStringConvertible {
@@ -21,10 +20,10 @@ enum BinaryStringScanner {
     }
 
     // MARK: - Public
-    static func scan(binaryAt path: Path, minimumLength: Int = 6) throws -> [String] {
+    static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [String] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/strings")
-        process.arguments = ["-n", "\(minimumLength)", path.string]
+        process.arguments = ["-n", "\(minimumLength)", url.path]
 
         let stdoutPipe = Pipe()
         process.standardOutput = stdoutPipe
