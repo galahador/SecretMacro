@@ -29,4 +29,9 @@ final class ObfuscatedRuntimeTests: XCTestCase {
         let revealed = #obfuscate("integration-test-value")
         XCTAssertEqual(revealed, "integration-test-value")
     }
+
+    func testObfuscateMacroResolvesEscapeSequences() {
+        let revealed = #obfuscate("line1\nline2\ttabbed \"quoted\" \\backslash")
+        XCTAssertEqual(revealed, "line1\nline2\ttabbed \"quoted\" \\backslash")
+    }
 }

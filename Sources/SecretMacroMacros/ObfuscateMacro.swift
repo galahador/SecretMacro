@@ -7,12 +7,13 @@
 
 import SecretMacroCore
 import SwiftDiagnostics
+import SwiftParser
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 public struct ObfuscateMacro: ExpressionMacro {
-    
+
     // MARK: - Public
     public static func expansion(of node: some FreestandingMacroExpansionSyntax,
                                  in context: some MacroExpansionContext) throws -> ExprSyntax {
@@ -21,14 +22,13 @@ public struct ObfuscateMacro: ExpressionMacro {
             context.diagnose(Diagnostic(node: Syntax(node), message: MacroDiagnostics.requiresStaticStringLiteral))
             return ExprSyntax(stringLiteral: "\"\"")
         }
-        
-        guard literal.segments.count == 1,
-              let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+
+        guard let value = literal.representedLiteralValue else {
             context.diagnose(Diagnostic(node: Syntax(literal), message: MacroDiagnostics.requiresStaticStringLiteral))
             return ExprSyntax(stringLiteral: "\"\"")
         }
-        
-        let plaintext = Array(segment.content.text.utf8)
+
+        let plaintext = Array(value.utf8)
         let key = SecureRandom.bytes(count: plaintext.count)
         let cipher = ByteCipher.xor(plaintext, key: key)
         
