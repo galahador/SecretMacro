@@ -57,7 +57,7 @@ Pure SwiftPM executable? Use the SPM plugin:
 swift package secret-scan
 ```
 
-Xcode app that just depends on this package via SPM (the common iOS case)?
+Xcode app that just depends on this package via SPM
 The plugin can't see your app's `.xcodeproj` target, so it can't scan it.
 Use a Run Script build phase against your real compiled binary instead:
 
