@@ -24,7 +24,7 @@ struct SecretMacroScanPlugin: CommandPlugin {
         )
 
         guard buildResult.succeeded else {
-            Diagnostics.error("build failed, nothing to scan:\n\(buildResult.logText)")
+            Diagnostics.error("build failed, nothing to scan. See the build output above.")
             return
         }
 
