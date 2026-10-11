@@ -20,7 +20,8 @@ let package = Package(
     ],
     products: [
         .library(name: "SecretMacro", targets: ["SecretMacro"]),
-        .plugin(name: "SecretMacroScan", targets: ["SecretMacroScan"])
+        .plugin(name: "SecretMacroScan", targets: ["SecretMacroScan"]),
+        .executable(name: "SecretMacroScanTool", targets: ["SecretMacroScanTool"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.0")
@@ -74,7 +75,6 @@ let package = Package(
             name: "SecretMacroMacrosTests",
             dependencies: [
                 "SecretMacroMacros",
-                "SecretMacroCore",
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
             ]

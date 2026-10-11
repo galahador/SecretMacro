@@ -12,7 +12,7 @@ import XCTest
 final class ByteCipherTests: XCTestCase {
     func testXORRoundTripsWithRandomKey() {
         let plaintext = Array("Hello, Secret!".utf8)
-        let key = SecureRandom.bytes(count: plaintext.count)
+        let key: [UInt8] = (0..<plaintext.count).map { _ in UInt8.random(in: .min...UInt8.max) }
 
         let cipher = ByteCipher.xor(plaintext, key: key)
         XCTAssertNotEqual(cipher, plaintext, "ciphertext should not equal plaintext for a non-zero key")
@@ -34,10 +34,5 @@ final class ByteCipherTests: XCTestCase {
         XCTAssertEqual(cipher, [11, 22, 31, 42, 51])
 
         XCTAssertEqual(ByteCipher.xor(cipher, key: key), plaintext)
-    }
-
-    func testSecureRandomProducesRequestedLength() {
-        XCTAssertEqual(SecureRandom.bytes(count: 32).count, 32)
-        XCTAssertEqual(SecureRandom.bytes(count: 0).count, 0)
     }
 }

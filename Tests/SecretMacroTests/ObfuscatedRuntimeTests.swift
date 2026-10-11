@@ -13,7 +13,7 @@ import SecretMacroCore
 final class ObfuscatedRuntimeTests: XCTestCase {
     func testRevealReconstructsOriginalString() {
         let plaintext = Array("super-secret-api-key".utf8)
-        let key = SecureRandom.bytes(count: plaintext.count)
+        let key: [UInt8] = (0..<plaintext.count).map { _ in UInt8.random(in: .min...UInt8.max) }
         let cipher = ByteCipher.xor(plaintext, key: key)
 
         let obfuscated = Obfuscated(bytes: cipher, key: key)

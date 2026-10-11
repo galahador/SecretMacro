@@ -9,7 +9,6 @@ import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
 
-@testable import SecretMacroCore
 @testable import SecretMacroMacros
 
 private struct ZeroByteGenerator: RandomByteGenerating {

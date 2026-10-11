@@ -16,6 +16,7 @@ struct SecretMacroScanPlugin: CommandPlugin {
         var extractor = ArgumentExtractor(arguments)
         let requestedProducts = Set(extractor.extractOption(named: "product"))
         let useReleaseConfig = extractor.extractFlag(named: "release") > 0
+        let allowEmptyScan = extractor.extractFlag(named: "allow-empty-scan") > 0
 
         let buildResult = try packageManager.build(
             .all(includingTests: false),
@@ -23,7 +24,7 @@ struct SecretMacroScanPlugin: CommandPlugin {
         )
 
         guard buildResult.succeeded else {
-            Diagnostics.error("secret-scan: build failed, nothing to scan.\n\(buildResult.logText)")
+            Diagnostics.error("build failed, nothing to scan:\n\(buildResult.logText)")
             return
         }
 
@@ -40,17 +41,21 @@ struct SecretMacroScanPlugin: CommandPlugin {
             let foundNames = Set(targetArtifacts.map { $0.url.lastPathComponent })
             let missingNames = requestedProducts.subtracting(foundNames)
             guard missingNames.isEmpty else {
-                Diagnostics.error("secret-scan: requested --product not found among built artifacts: \(missingNames.sorted().joined(separator: ", "))")
+                Diagnostics.error("product not found: \(missingNames.sorted().joined(separator: ", "))")
                 throw ScanFailure.productsNotFound(missingNames)
             }
         }
 
         guard !targetArtifacts.isEmpty else {
-            Diagnostics.warning("secret-scan: build produced no executable, dynamic library, or static library artifacts to scan.")
+            guard allowEmptyScan else {
+                Diagnostics.error("nothing to scan. Pass --allow-empty-scan if that's expected.")
+                throw ScanFailure.noArtifactsToScan
+            }
+            Diagnostics.warning("nothing to scan, continuing (--allow-empty-scan).")
             return
         }
 
-        Diagnostics.remark("secret-scan: scanning \(targetArtifacts.count) artifact(s): \(targetArtifacts.map { $0.url.lastPathComponent }.joined(separator: ", "))")
+        Diagnostics.remark("scanning \(targetArtifacts.count) artifact(s): \(targetArtifacts.map { $0.url.lastPathComponent }.joined(separator: ", "))")
 
         let ignoreFileURL = context.package.directoryURL.appending(path: ".secretmacroignore")
         let ignoreFileArgument = FileManager.default.fileExists(atPath: ignoreFileURL.path) ? ignoreFileURL.path : "-"
@@ -93,13 +98,16 @@ struct SecretMacroScanPlugin: CommandPlugin {
 enum ScanFailure: Error, CustomStringConvertible {
     case secretsFound
     case productsNotFound(Set<String>)
+    case noArtifactsToScan
 
     var description: String {
         switch self {
         case .secretsFound:
-            return "secret-scan found likely plaintext secret(s). See the errors above for where."
+            return "found likely secret(s), see errors above."
         case .productsNotFound(let names):
-            return "secret-scan: requested --product not found: \(names.sorted().joined(separator: ", "))."
+            return "product not found: \(names.sorted().joined(separator: ", "))."
+        case .noArtifactsToScan:
+            return "nothing scanned. Pass --allow-empty-scan if that's expected."
         }
     }
 }

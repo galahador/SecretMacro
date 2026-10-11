@@ -1,22 +1,21 @@
 # 🚧 Still in progress 🚧
-(Need to test on device with jailbreak )  
+(Need to test on device with jailbreak)
 
 # SecretMacro
 
 Hide your API keys from `strings`. At compile time, not runtime.
 
 Hardcoding a secret in Swift means anyone with Hopper, IDA, or a plain
-`strings` call on your `.ipa` can read it in about five seconds. SecretMacro
-fixes the easy version of that problem: it splits your string into random
-bytes at build time and reassembles it only when your code actually calls it.
+`strings` call on your `.ipa` can read it in seconds. SecretMacro splits
+your string into random bytes at build time and reassembles it only when
+your code calls it.
 
 ```swift
 let apiKey = #obfuscate("sk_live_51H8xyz...")
 ```
 
 That's the whole API. `#obfuscate` takes a string literal and expands into
-two byte arrays plus a `.reveal()` call — no plaintext left anywhere in the
-binary.
+two byte arrays plus a `.reveal()` call. No plaintext ends up in the binary.
 
 ## Install
 
@@ -26,7 +25,7 @@ dependencies: [
 ]
 ```
 
-Then add `"SecretMacro"` to your target's dependencies.
+Add `"SecretMacro"` to your target's dependencies.
 
 ## How it works
 
@@ -36,36 +35,55 @@ Then add `"SecretMacro"` to your target's dependencies.
 2. Generates a random key the same length as the string.
 3. XORs them together and writes both arrays into your binary as source.
 
-Neither array is printable text, so there's no contiguous readable string
-for `strings` to find. At runtime, `Obfuscated.reveal()` XORs them back
-together and hands you the original `String`.
+Neither array is printable text, so there's nothing for `strings` to find.
+At runtime, `Obfuscated.reveal()` XORs them back together and hands you
+the original `String`.
 
-**Be honest with yourself about what this buys you.** It stops someone from
-casually `strings`-ing your binary and grepping for `sk_live`. It does *not*
-stop someone who's actually debugging or instrumenting your app — they can
-just call `reveal()` themselves. If a secret is valuable enough to attack
-properly, it belongs on your server, not in the app at all.
+**Be honest about what this buys you.** It stops casual `strings`-and-grep
+attacks. It does not stop someone actually debugging or instrumenting your
+app; they can just call `reveal()` themselves. A secret worth attacking
+properly belongs on your server, not in the app.
 
-## The build plugin
+## Scanning for secrets nobody obfuscated
 
-There's also an SPM command plugin that scans your built binaries for
-things that look like secrets — AWS keys, JWTs, bearer tokens, private key
-blocks — and fails if it finds any. Good as a CI guardrail for the secrets
-nobody obfuscated.
+`SecretMacroScanTool` runs `strings` on a binary and flags likely leaked
+credentials: AWS keys, JWTs, PEM private key blocks, bearer tokens, and
+generic high-entropy strings. It's a safety net for secrets that never got
+wrapped in `#obfuscate`.
+
+Pure SwiftPM executable? Use the SPM plugin:
 
 ```sh
 swift package secret-scan
 ```
 
-Got a long string that's a false positive (a license key, a hash, whatever)?
-Add it to a `.secretmacroignore` file at your package root, one entry per
-line.
+Xcode app that just depends on this package via SPM (the common iOS case)?
+The plugin can't see your app's `.xcodeproj` target, so it can't scan it.
+Use a Run Script build phase against your real compiled binary instead:
+
+```sh
+# Build Phases → + New Run Script Phase, after "Link Binary"
+
+if [ "$CONFIGURATION" = "Release" ]; then
+  swift build -c release --package-path /path/to/SecretMacro --product SecretMacroScanTool
+  /path/to/SecretMacro/.build/release/SecretMacroScanTool - "$TARGET_BUILD_DIR/$EXECUTABLE_PATH"
+fi
+```
+
+This checks the binary that's actually shipping. Nonzero exit fails the build.
+
+False positive (a license key, a hash)? Add it to `.secretmacroignore`,
+one entry per line.
+
+Detection is heuristic: pattern matching plus entropy, tuned to ignore
+ordinary Swift/ObjC symbol names. It will miss formats it doesn't
+recognize and can still flag legitimate random-looking strings. A clean
+run means "nothing obvious," not a guarantee.
 
 ## Argument rules
 
-The argument has to be a literal the compiler can see — no interpolation,
-no variables, no runtime values. This is enforced at compile time, so if
-you get it wrong, you'll know immediately:
+The argument must be a literal the compiler can see: no interpolation, no
+variables, no runtime values. Enforced at compile time:
 
 ```swift
 #obfuscate(someVariable) // ❌ compile error
