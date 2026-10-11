@@ -7,23 +7,28 @@
 
 import Foundation
 
-enum BinaryStringScanner {
-    enum ScanError: Error, CustomStringConvertible {
+public enum BinaryStringScanner {
+    public enum ScanError: Error, CustomStringConvertible {
         case processFailed(Int32)
 
-        var description: String {
+        public var description: String {
             switch self {
             case .processFailed(let status):
                 return "`strings` exited with status \(status)."
             }
         }
     }
-
+    
     // MARK: - Public
-    static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [String] {
+    public struct FoundString {
+        public let offset: String
+        public let value: String
+    }
+
+    public static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [FoundString] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/strings")
-        process.arguments = ["-n", "\(minimumLength)", url.path]
+        process.arguments = ["-n", "\(minimumLength)", "-t", "x", url.path]
 
         let stdoutPipe = Pipe()
         process.standardOutput = stdoutPipe
@@ -38,6 +43,13 @@ enum BinaryStringScanner {
         }
 
         let output = String(decoding: data, as: UTF8.self)
-        return output.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        return output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .compactMap { rawLine in
+                let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+                let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                guard parts.count == 2 else { return nil }
+                return FoundString(offset: String(parts[0]), value: String(parts[1]))
+            }
     }
 }

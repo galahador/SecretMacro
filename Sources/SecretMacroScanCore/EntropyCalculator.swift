@@ -7,19 +7,18 @@
 
 import Foundation
 
-enum EntropyCalculator {
-    static func isHighEntropy(_ string: String,
-                              lengthThreshold: Int = 20,
-                              entropyThreshold: Double = 4.0) -> Bool {
-        
+public enum EntropyCalculator {
+    public static func isHighEntropy(_ string: String,
+                                     lengthThreshold: Int = 20,
+                                     entropyThreshold: Double = 4.0) -> Bool {
         guard string.count >= lengthThreshold,
-            string.allSatisfy({ $0.isASCII && !$0.isWhitespace }) else {
+              string.allSatisfy({ $0.isASCII && !$0.isWhitespace }) else {
             return false
         }
         return shannonEntropy(of: string) >= entropyThreshold
     }
-
-    static func shannonEntropy(of string: String) -> Double {
+    
+    public static func shannonEntropy(of string: String) -> Double {
         guard !string.isEmpty else { return 0 }
         var frequencies: [Character: Int] = [:]
         for character in string {

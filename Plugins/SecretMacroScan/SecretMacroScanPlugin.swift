@@ -7,10 +7,15 @@
 
 import Foundation
 import PackagePlugin
+import SecretMacroScanCore
 
 @main
 struct SecretMacroScanPlugin: CommandPlugin {
-    
+
+    private static let scannableKinds: Set<PackageManager.BuildResult.BuiltArtifact.Kind> = [
+        .executable, .dynamicLibrary, .staticLibrary
+    ]
+
     // MARK: - Public
     func performCommand(context: PluginContext, arguments: [String]) async throws {
         var extractor = ArgumentExtractor(arguments)
@@ -29,22 +34,32 @@ struct SecretMacroScanPlugin: CommandPlugin {
 
         let configuration = ScanConfiguration.load(from: context.package.directoryURL)
 
-        let scannableArtifacts = buildResult.builtArtifacts.filter { artifact in
-            artifact.kind == .executable || artifact.kind == .dynamicLibrary
+        let scannableArtifacts = buildResult.builtArtifacts.filter { Self.scannableKinds.contains($0.kind) }
+
+        let targetArtifacts: [PackageManager.BuildResult.BuiltArtifact]
+        if requestedProducts.isEmpty {
+            targetArtifacts = scannableArtifacts
+        } else {
+            targetArtifacts = scannableArtifacts.filter { requestedProducts.contains($0.url.lastPathComponent) }
+            let foundNames = Set(targetArtifacts.map { $0.url.lastPathComponent })
+            let missingNames = requestedProducts.subtracting(foundNames)
+            guard missingNames.isEmpty else {
+                Diagnostics.error("secret-scan: requested --product not found among built artifacts: \(missingNames.sorted().joined(separator: ", "))")
+                throw ScanFailure.productsNotFound(missingNames)
+            }
         }
 
-        guard !scannableArtifacts.isEmpty else {
-            Diagnostics.warning("secret-scan: build produced no executable or dynamic library artifacts to scan.")
+        guard !targetArtifacts.isEmpty else {
+            Diagnostics.warning("secret-scan: build produced no executable, dynamic library, or static library artifacts to scan.")
             return
         }
 
+        Diagnostics.remark("secret-scan: scanning \(targetArtifacts.count) artifact(s): \(targetArtifacts.map { $0.url.lastPathComponent }.joined(separator: ", "))")
+
         var totalMatches = 0
 
-        for artifact in scannableArtifacts {
+        for artifact in targetArtifacts {
             let artifactName = artifact.url.lastPathComponent
-            if !requestedProducts.isEmpty, !requestedProducts.contains(artifactName) {
-                continue
-            }
 
             let strings = try BinaryStringScanner.scan(binaryAt: artifact.url)
             let matches = SecretPatternMatcher.suspiciousStrings(
@@ -56,25 +71,28 @@ struct SecretMacroScanPlugin: CommandPlugin {
             totalMatches += matches.count
 
             for match in matches {
-                Diagnostics.error("secret-scan: \(artifactName): possible \(match.reason): \(match.line)")
+                Diagnostics.error("secret-scan: \(artifactName): possible \(match.reason) at offset 0x\(match.offset)")
             }
         }
 
         if totalMatches > 0 {
-            Diagnostics.error("secret-scan: found \(totalMatches)")
+            Diagnostics.error("secret-scan: found \(totalMatches) likely plaintext secret(s) across \(targetArtifacts.count) artifact(s). Wrap them in #obfuscate(...) or add a reviewed exception to .secretmacroignore.")
             throw ScanFailure.secretsFound(count: totalMatches)
         }
     }
 }
 
-// MARK: - Failure 
+// MARK: - Failure
 enum ScanFailure: Error, CustomStringConvertible {
     case secretsFound(count: Int)
+    case productsNotFound(Set<String>)
 
     var description: String {
         switch self {
         case .secretsFound(let count):
             return "secret-scan found \(count) likely plaintext secret(s)."
+        case .productsNotFound(let names):
+            return "secret-scan: requested --product not found: \(names.sorted().joined(separator: ", "))."
         }
     }
 }

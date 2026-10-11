@@ -9,21 +9,25 @@ import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
 
-import SecretMacroCore
+@testable import SecretMacroCore
 @testable import SecretMacroMacros
+
+private struct ZeroByteGenerator: RandomByteGenerating {
+    func bytes(count: Int) -> [UInt8] { Array(repeating: 0, count: count) }
+}
 
 final class ObfuscateMacroTests: XCTestCase {
     private let macros: [String: Macro.Type] = ["obfuscate": ObfuscateMacro.self]
 
-    private let originalBytesProvider = SecureRandom.bytesProvider
+    private let originalGenerator = SecureRandom.generator
 
     override func tearDown() {
-        SecureRandom.bytesProvider = originalBytesProvider
+        SecureRandom.generator = originalGenerator
         super.tearDown()
     }
 
     func testExpandsLiteralIntoObfuscatedCall() {
-        SecureRandom.bytesProvider = { count in Array(repeating: 0, count: count) }
+        SecureRandom.generator = ZeroByteGenerator()
 
         assertMacroExpansion(
             #"""
@@ -37,7 +41,7 @@ final class ObfuscateMacroTests: XCTestCase {
     }
 
     func testEmptyLiteralExpandsToEmptyArrays() {
-        SecureRandom.bytesProvider = { count in Array(repeating: 0, count: count) }
+        SecureRandom.generator = ZeroByteGenerator()
 
         assertMacroExpansion(
             #"""
