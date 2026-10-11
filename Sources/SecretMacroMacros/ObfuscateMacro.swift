@@ -29,18 +29,26 @@ public struct ObfuscateMacro: ExpressionMacro {
         }
 
         let plaintext = Array(value.utf8)
-        let key = SecureRandom.bytes(count: plaintext.count)
+        let key = randomBytes(count: plaintext.count)
+        return renderExpression(plaintext: plaintext, key: key)
+    }
+
+    static func renderExpression(plaintext: [UInt8], key: [UInt8]) -> ExprSyntax {
         let cipher = ByteCipher.xor(plaintext, key: key)
-        
         let bytesLiteral = hexArrayLiteral(cipher)
         let keyLiteral = hexArrayLiteral(key)
-        
+
         return ExprSyntax(
             "SecretMacro.Obfuscated(bytes: \(raw: bytesLiteral), key: \(raw: keyLiteral)).reveal()"
         )
     }
-    
+
     // MARK: - Private
+    private static func randomBytes(count: Int) -> [UInt8] {
+        var rng = SystemRandomNumberGenerator()
+        return (0..<count).map { _ in UInt8.random(in: UInt8.min...UInt8.max, using: &rng) }
+    }
+
     private static func hexArrayLiteral(_ bytes: [UInt8]) -> String {
         "[" + bytes.map { "0x" + String($0, radix: 16) }.joined(separator: ", ") + "]"
     }

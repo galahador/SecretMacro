@@ -75,7 +75,9 @@ let package = Package(
             name: "SecretMacroMacrosTests",
             dependencies: [
                 "SecretMacroMacros",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacroExpansion", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
             ]
         ),
