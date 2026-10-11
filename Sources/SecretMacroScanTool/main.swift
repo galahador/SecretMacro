@@ -11,7 +11,7 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 
 guard arguments.count >= 2 else {
     FileHandle.standardError.write(
-        Data("usage: SecretMacroScanTool <ignorefile-or-'-'> <binary-path> [<binary-path> ...]\n".utf8)
+        Data("usage: SecretMacroScanTool <ignorefile|-> <binary> [<binary> ...]\n".utf8)
     )
     exit(2)
 }
@@ -26,6 +26,7 @@ func report(_ severity: String, _ message: String) {
 }
 
 var totalMatches = 0
+var unreadableArtifacts = 0
 
 for pathString in binaryPaths {
     let url = URL(fileURLWithPath: pathString)
@@ -39,17 +40,27 @@ for pathString in binaryPaths {
         totalMatches += matches.count
 
         for match in matches {
-            report("ERROR", "\(artifactName): possible \(match.reason) at offset 0x\(match.offset)")
+            report("ERROR", "\(artifactName): possible \(match.reason) at 0x\(match.offset)")
         }
     } catch {
-        report("WARNING", "\(artifactName): scan failed: \(error)")
+        unreadableArtifacts += 1
+        report("ERROR", "\(artifactName): scan failed (\(error))")
     }
 }
 
-if totalMatches > 0 {
-    report("ERROR", "found \(totalMatches) secret(s) across \(binaryPaths.count)")
-    exit(1)
-} else {
-    report("REMARK", "scanned \(binaryPaths.count) artifact(s)")
-    exit(0)
+let scannedSuccessfully = binaryPaths.count - unreadableArtifacts
+
+if unreadableArtifacts > 0 {
+    report("ERROR", "\(unreadableArtifacts)/\(binaryPaths.count) artifacts failed to scan")
 }
+
+if totalMatches > 0 {
+    report("ERROR", "found \(totalMatches) likely secret(s) in \(scannedSuccessfully) artifact(s)")
+}
+
+guard unreadableArtifacts == 0, totalMatches == 0 else {
+    exit(1)
+}
+
+report("REMARK", "scanned \(scannedSuccessfully)/\(binaryPaths.count) artifacts, nothing found")
+exit(0)

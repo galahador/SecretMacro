@@ -16,10 +16,10 @@ private struct SystemRandomByteGenerator: RandomByteGenerating {
     }
 }
 
-public enum SecureRandom {
+enum SecureRandom {
     nonisolated(unsafe) static var generator: RandomByteGenerating = SystemRandomByteGenerator()
 
-    public static func bytes(count: Int) -> [UInt8] {
+    static func bytes(count: Int) -> [UInt8] {
         generator.bytes(count: count)
     }
 }
