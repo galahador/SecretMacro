@@ -1,6 +1,7 @@
-# SecretMacro
+# 🚧 Still in progress 🚧
+(Need to test on device with jailbreak )  
 
-<!-- banner image goes here -->
+# SecretMacro
 
 Hide your API keys from `strings`. At compile time, not runtime.
 
