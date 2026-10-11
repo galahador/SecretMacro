@@ -11,9 +11,8 @@ enum EntropyCalculator {
     static func isHighEntropy(_ string: String,
                               lengthThreshold: Int = 20,
                               entropyThreshold: Double = 4.0) -> Bool {
-        
         guard string.count >= lengthThreshold,
-            string.allSatisfy({ $0.isASCII && !$0.isWhitespace }) else {
+              string.allSatisfy({ $0.isASCII && !$0.isWhitespace }) else {
             return false
         }
         return shannonEntropy(of: string) >= entropyThreshold

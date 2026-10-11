@@ -19,11 +19,15 @@ enum BinaryStringScanner {
         }
     }
 
-    // MARK: - Public
-    static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [String] {
+    struct FoundString {
+        let offset: String
+        let value: String
+    }
+
+    static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [FoundString] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/strings")
-        process.arguments = ["-n", "\(minimumLength)", url.path]
+        process.arguments = ["-n", "\(minimumLength)", "-t", "x", url.path]
 
         let stdoutPipe = Pipe()
         process.standardOutput = stdoutPipe
@@ -38,6 +42,13 @@ enum BinaryStringScanner {
         }
 
         let output = String(decoding: data, as: UTF8.self)
-        return output.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        return output
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .compactMap { rawLine in
+                let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+                let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                guard parts.count == 2 else { return nil }
+                return FoundString(offset: String(parts[0]), value: String(parts[1]))
+            }
     }
 }

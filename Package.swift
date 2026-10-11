@@ -28,6 +28,9 @@ let package = Package(
     targets: [.target(
             name: "SecretMacroCore"
         ),
+        .executableTarget(
+            name: "SecretMacroScanTool"
+        ),
         .macro(
             name: "SecretMacroMacros",
             dependencies: [
@@ -54,7 +57,10 @@ let package = Package(
                     verb: "secret-scan",
                     description: "Scans built binaries for plaintext secrets using `strings`."
                 )
-            )
+            ),
+            dependencies: [
+                "SecretMacroScanTool"
+            ]
         ),
 
         .testTarget(
@@ -71,6 +77,12 @@ let package = Package(
                 "SecretMacroCore",
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
+            ]
+        ),
+        .testTarget(
+            name: "SecretMacroScanToolTests",
+            dependencies: [
+                "SecretMacroScanTool"
             ]
         )
     ]

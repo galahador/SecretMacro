@@ -10,11 +10,12 @@ import Foundation
 struct ScanConfiguration {
     let ignoredSubstrings: [String]
 
-    static func load(from packageDirectory: URL) -> ScanConfiguration {
-        let configURL = packageDirectory.appending(path: ".secretmacroignore")
+    static func load(ignoreFileAt path: String?) -> ScanConfiguration {
         guard
-            let data = FileManager.default.contents(atPath: configURL.path),
-            let text = String(data: data, encoding: .utf8) else {
+            let path,
+            let data = FileManager.default.contents(atPath: path),
+            let text = String(data: data, encoding: .utf8)
+        else {
             return ScanConfiguration(ignoredSubstrings: [])
         }
 
