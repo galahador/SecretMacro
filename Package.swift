@@ -28,8 +28,8 @@ let package = Package(
     targets: [.target(
             name: "SecretMacroCore"
         ),
-        .target(
-            name: "SecretMacroScanCore"
+        .executableTarget(
+            name: "SecretMacroScanTool"
         ),
         .macro(
             name: "SecretMacroMacros",
@@ -59,7 +59,7 @@ let package = Package(
                 )
             ),
             dependencies: [
-                "SecretMacroScanCore"
+                "SecretMacroScanTool"
             ]
         ),
 
@@ -80,9 +80,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "SecretMacroScanCoreTests",
+            name: "SecretMacroScanToolTests",
             dependencies: [
-                "SecretMacroScanCore"
+                "SecretMacroScanTool"
             ]
         )
     ]

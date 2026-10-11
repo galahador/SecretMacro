@@ -7,14 +7,9 @@
 
 import Foundation
 import PackagePlugin
-import SecretMacroScanCore
 
 @main
 struct SecretMacroScanPlugin: CommandPlugin {
-
-    private static let scannableKinds: Set<PackageManager.BuildResult.BuiltArtifact.Kind> = [
-        .executable, .dynamicLibrary, .staticLibrary
-    ]
 
     // MARK: - Public
     func performCommand(context: PluginContext, arguments: [String]) async throws {
@@ -32,9 +27,10 @@ struct SecretMacroScanPlugin: CommandPlugin {
             return
         }
 
-        let configuration = ScanConfiguration.load(from: context.package.directoryURL)
-
-        let scannableArtifacts = buildResult.builtArtifacts.filter { Self.scannableKinds.contains($0.kind) }
+        let scannableKinds: Set<PackageManager.BuildResult.BuiltArtifact.Kind> = [
+            .executable, .dynamicLibrary, .staticLibrary
+        ]
+        let scannableArtifacts = buildResult.builtArtifacts.filter { scannableKinds.contains($0.kind) }
 
         let targetArtifacts: [PackageManager.BuildResult.BuiltArtifact]
         if requestedProducts.isEmpty {
@@ -56,41 +52,52 @@ struct SecretMacroScanPlugin: CommandPlugin {
 
         Diagnostics.remark("secret-scan: scanning \(targetArtifacts.count) artifact(s): \(targetArtifacts.map { $0.url.lastPathComponent }.joined(separator: ", "))")
 
-        var totalMatches = 0
+        let ignoreFileURL = context.package.directoryURL.appending(path: ".secretmacroignore")
+        let ignoreFileArgument = FileManager.default.fileExists(atPath: ignoreFileURL.path) ? ignoreFileURL.path : "-"
 
-        for artifact in targetArtifacts {
-            let artifactName = artifact.url.lastPathComponent
+        let tool = try context.tool(named: "SecretMacroScanTool")
+        let process = Process()
+        process.executableURL = tool.url
+        process.arguments = [ignoreFileArgument] + targetArtifacts.map { $0.url.path }
 
-            let strings = try BinaryStringScanner.scan(binaryAt: artifact.url)
-            let matches = SecretPatternMatcher.suspiciousStrings(
-                in: strings,
-                ignoring: configuration.ignoredSubstrings
-            )
+        let stdoutPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        try process.run()
+        let outputData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
 
-            guard !matches.isEmpty else { continue }
-            totalMatches += matches.count
-
-            for match in matches {
-                Diagnostics.error("secret-scan: \(artifactName): possible \(match.reason) at offset 0x\(match.offset)")
+        let output = String(decoding: outputData, as: UTF8.self)
+        for line in output.split(separator: "\n", omittingEmptySubsequences: true) {
+            let parts = line.split(separator: "\t", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let message = String(parts[1])
+            switch parts[0] {
+            case "ERROR":
+                Diagnostics.error(message)
+            case "WARNING":
+                Diagnostics.warning(message)
+            case "REMARK":
+                Diagnostics.remark(message)
+            default:
+                break
             }
         }
 
-        if totalMatches > 0 {
-            Diagnostics.error("secret-scan: found \(totalMatches) likely plaintext secret(s) across \(targetArtifacts.count) artifact(s). Wrap them in #obfuscate(...) or add a reviewed exception to .secretmacroignore.")
-            throw ScanFailure.secretsFound(count: totalMatches)
+        guard process.terminationStatus == 0 else {
+            throw ScanFailure.secretsFound
         }
     }
 }
 
 // MARK: - Failure
 enum ScanFailure: Error, CustomStringConvertible {
-    case secretsFound(count: Int)
+    case secretsFound
     case productsNotFound(Set<String>)
 
     var description: String {
         switch self {
-        case .secretsFound(let count):
-            return "secret-scan found \(count) likely plaintext secret(s)."
+        case .secretsFound:
+            return "secret-scan found likely plaintext secret(s). See the errors above for where."
         case .productsNotFound(let names):
             return "secret-scan: requested --product not found: \(names.sorted().joined(separator: ", "))."
         }

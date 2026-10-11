@@ -7,25 +7,24 @@
 
 import Foundation
 
-public enum BinaryStringScanner {
-    public enum ScanError: Error, CustomStringConvertible {
+enum BinaryStringScanner {
+    enum ScanError: Error, CustomStringConvertible {
         case processFailed(Int32)
 
-        public var description: String {
+        var description: String {
             switch self {
             case .processFailed(let status):
                 return "`strings` exited with status \(status)."
             }
         }
     }
-    
-    // MARK: - Public
-    public struct FoundString {
-        public let offset: String
-        public let value: String
+
+    struct FoundString {
+        let offset: String
+        let value: String
     }
 
-    public static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [FoundString] {
+    static func scan(binaryAt url: URL, minimumLength: Int = 6) throws -> [FoundString] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/strings")
         process.arguments = ["-n", "\(minimumLength)", "-t", "x", url.path]
