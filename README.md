@@ -1,8 +1,10 @@
-# 🚧 Still in progress 🚧
-(Need to test on device with jailbreak)
+
+# 🚧 **Work in progress** 🚧
+ not yet verified on a jailbroken device.
+
+![SecretMacro: hide your API keys from strings, at compile time not runtime](Banner.png)
 
 # SecretMacro
-
 Hide your API keys from `strings`. At compile time, not runtime.
 
 Hardcoding a secret in Swift means anyone with Hopper, IDA, or a plain
@@ -17,15 +19,24 @@ let apiKey = #obfuscate("sk_live_51H8xyz...")
 That's the whole API. `#obfuscate` takes a string literal and expands into
 two byte arrays plus a `.reveal()` call. No plaintext ends up in the binary.
 
+## Requirements
+
+- Xcode 16+ / Swift 6 toolchain to build this package (the plugin uses
+  PackageDescription APIs introduced in tools-version 6.0).
+- iOS 13+ at runtime for apps that consume it (macOS 10.15+, tvOS 13+,
+  watchOS 6+, and Mac Catalyst 13+ are also declared).
+
 ## Install
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourname/SecretMacro.git", from: "1.0.0")
+    .package(url: "https://github.com/galahador/SecretMacro.git", branch: "main")
 ]
 ```
 
-Add `"SecretMacro"` to your target's dependencies.
+Add `"SecretMacro"` to your target's dependencies. (Version-pinned installs
+via `from:` will work once a proper `X.Y.Z` tag is cut; use `branch: "main"`
+until then.)
 
 ## How it works
 
@@ -57,7 +68,7 @@ Pure SwiftPM executable? Use the SPM plugin:
 swift package secret-scan
 ```
 
-Xcode app that just depends on this package via SPM
+Xcode app that just depends on this package via SPM (the common iOS case)?
 The plugin can't see your app's `.xcodeproj` target, so it can't scan it.
 Use a Run Script build phase against your real compiled binary instead:
 
