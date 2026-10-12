@@ -4,9 +4,6 @@
 
 ![SecretMacro: hide your API keys from strings, at compile time not runtime](Banner.png)
 
-# SecretMacro
-Hide your API keys from `strings`. At compile time, not runtime.
-
 Hardcoding a secret in Swift means anyone with Hopper, IDA, or a plain
 `strings` call on your `.ipa` can read it in seconds. SecretMacro splits
 your string into random bytes at build time and reassembles it only when
